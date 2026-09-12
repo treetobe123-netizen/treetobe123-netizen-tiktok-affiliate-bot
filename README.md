@@ -1,6 +1,9 @@
 # tiktok-affiliate-bot
 
-TikTok向け楽天アフィリエイト自動投稿bot。instagram-affiliate-botと同じ楽天商品ローテーション方式。
+TikTokアカウント「**マタイガジェット部**」向け楽天アフィリエイト自動投稿bot。
+楓ママ/梨ママ（Threads）とは無関係の独立ブランドで、ジャンルは**ガジェット・便利家電**専門
+（TikTok Shop Japanで家電・ガジェットが取引額1位カテゴリのため）。仕組み自体は
+instagram-affiliate-botと同じ楽天商品ローテーション方式を流用しているが、扱う商品ジャンルは別。
 
 ## 仕組み(2段階のバトンリレー)
 

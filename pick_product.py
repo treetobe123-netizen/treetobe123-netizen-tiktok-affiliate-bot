@@ -1,11 +1,10 @@
 """その日のキーワードで楽天商品を1件選び、JSONを標準出力に書き出すCLI
 
-instagram-affiliate-botと同じキーワードリストを使うが、同じ日に同じ商品にならないよう
-日付インデックスをずらしてローテーションする(TIKTOK_DAY_OFFSET)。
+「マタイガジェット部」向け：ガジェット・便利家電系キーワードを日替わりでローテーション。
 
 使い方:
   python pick_product.py            # 日付ローテーションでキーワードを自動選択
-  python pick_product.py --keyword "抱っこ紐"   # キーワード指定
+  python pick_product.py --keyword "モバイルバッテリー 大容量"   # キーワード指定
 """
 import argparse
 import datetime
@@ -16,8 +15,6 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 from load_env import load_env
 from rakuten_research import KEYWORDS, search_items
-
-TIKTOK_DAY_OFFSET = 8  # instagram-affiliate-bot/pick_product.pyとキーワードが被らないようにずらす
 
 
 def main():
@@ -30,7 +27,7 @@ def main():
     if args.keyword:
         keyword = args.keyword
     else:
-        day_index = datetime.date.today().toordinal() + TIKTOK_DAY_OFFSET
+        day_index = datetime.date.today().toordinal()
         keyword = KEYWORDS[day_index % len(KEYWORDS)]
 
     items = search_items(env, keyword, hits=args.hits)
