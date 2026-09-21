@@ -14,8 +14,12 @@ REPO_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "tiktok-hub"
 MEDIA_DIR = os.path.join(REPO_DIR, "media")
 
 
-def publish_to_github_pages(env, local_file_path, wait_seconds=60):
-    """メディアファイルをtiktok-hub/media/にコピーしてpushし、公開URLを返す"""
+def publish_to_github_pages(env, local_file_path, wait_seconds=60, max_retries=5):
+    """メディアファイルをtiktok-hub/media/にコピーしてpushし、公開URLを返す
+
+    クラウドルーティン側もtiktok-hub/index.htmlをpushするため、単純なgit pushだと
+    競合で失敗することがある。pull --rebase→push をリトライして頑健にする。
+    """
     os.makedirs(MEDIA_DIR, exist_ok=True)
     filename = os.path.basename(local_file_path)
     shutil.copyfile(local_file_path, os.path.join(MEDIA_DIR, filename))
@@ -24,7 +28,13 @@ def publish_to_github_pages(env, local_file_path, wait_seconds=60):
     diff = subprocess.run(["git", "diff", "--cached", "--quiet"], cwd=REPO_DIR)
     if diff.returncode != 0:
         subprocess.run(["git", "commit", "-m", f"add media {filename}"], cwd=REPO_DIR, check=True)
-        subprocess.run(["git", "push"], cwd=REPO_DIR, check=True)
+        for attempt in range(max_retries):
+            subprocess.run(["git", "pull", "--rebase"], cwd=REPO_DIR, check=True)
+            result = subprocess.run(["git", "push"], cwd=REPO_DIR)
+            if result.returncode == 0:
+                break
+        else:
+            raise RuntimeError(f"tiktok-hubへのpushが{max_retries}回失敗しました")
         time.sleep(wait_seconds)  # GitHub Pagesの反映を待つ(publish.pyの中継ページと同様)
 
     base = env.get("GITHUB_PAGES_URL", "").rstrip("/")

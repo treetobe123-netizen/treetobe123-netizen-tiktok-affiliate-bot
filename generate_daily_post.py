@@ -41,6 +41,17 @@ def git(*args, cwd=BASE_DIR):
     subprocess.run(["git", *args], cwd=cwd, check=True)
 
 
+def git_push_with_retry(max_retries=5):
+    """クラウドルーティン側のlog.jsonlコミット等との競合に備え、
+    pull --rebase→push をリトライする"""
+    for attempt in range(max_retries):
+        subprocess.run(["git", "pull", "--rebase"], cwd=BASE_DIR, check=True)
+        result = subprocess.run(["git", "push"], cwd=BASE_DIR)
+        if result.returncode == 0:
+            return
+    raise RuntimeError(f"tiktok-affiliate-botへのpushが{max_retries}回失敗しました")
+
+
 def main():
     subprocess.run(["git", "pull"], cwd=BASE_DIR, check=True)
 
@@ -76,7 +87,7 @@ def main():
 
     git("add", "queue/ready_to_post.json", "queue/today_item.json")
     git("commit", "-m", f"queue: video ready to post {datetime.date.today().isoformat()} (local ComfyUI)")
-    git("push")
+    git_push_with_retry()
     print("push完了。クラウドルーティンがHiggsFieldに取り込んでTikTokに投稿します。")
 
 
