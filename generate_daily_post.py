@@ -5,7 +5,10 @@ HiggsFieldの動画生成が有料プラン必須になったため、ローカ�
 ここでは「動画生成→公開URL化→queue/ready_to_post.jsonに書く」までを担当し、
 続きはクラウドルーティンがHiggsFieldのmedia_import_url経由で拾って投稿する。
 
-前提: ComfyUIが http://127.0.0.1:8188 で起動していること
+ComfyUIが起動していなければ自動で起動を試みる(StabilityMatrix管理下の
+D:\Data\Packages\ComfyUI を想定)。タスクスケジューラでの無人実行では、
+誰かが手動でComfyUIを開き忘れていると2026-09-15〜21のように7日間丸ごと
+失敗し続けるため、この自動起動が要になる。
 
 使い方:
   python generate_daily_post.py
@@ -15,6 +18,9 @@ import json
 import os
 import subprocess
 import sys
+import time
+import urllib.request
+import urllib.error
 
 sys.stdout.reconfigure(encoding="utf-8")
 
@@ -26,6 +32,42 @@ from caption_templates import build_template_caption
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 QUEUE_TODAY = os.path.join(BASE_DIR, "queue", "today_item.json")
 QUEUE_READY = os.path.join(BASE_DIR, "queue", "ready_to_post.json")
+
+COMFYUI_URL = "http://127.0.0.1:8188"
+COMFYUI_DIR = r"D:\Data\Packages\ComfyUI"
+
+
+def _comfyui_alive():
+    try:
+        urllib.request.urlopen(f"{COMFYUI_URL}/system_stats", timeout=3)
+        return True
+    except (urllib.error.URLError, OSError):
+        return False
+
+
+def ensure_comfyui_running(timeout=180):
+    if _comfyui_alive():
+        print("ComfyUI: 起動済み")
+        return
+    print("ComfyUI: 未起動のため自動起動します...")
+    python_exe = os.path.join(COMFYUI_DIR, "venv", "Scripts", "python.exe")
+    log_path = os.path.join(BASE_DIR, "comfyui_startup.log")
+    with open(log_path, "a", encoding="utf-8") as log_file:
+        subprocess.Popen(
+            [python_exe, "main.py"],
+            cwd=COMFYUI_DIR,
+            stdout=log_file,
+            stderr=subprocess.STDOUT,
+            creationflags=subprocess.CREATE_NO_WINDOW,
+        )
+    waited = 0
+    while waited < timeout:
+        if _comfyui_alive():
+            print(f"ComfyUI: 起動確認できました({waited}秒待機)")
+            return
+        time.sleep(5)
+        waited += 5
+    raise RuntimeError(f"ComfyUIが{timeout}秒待っても起動しませんでした。comfyui_startup.logを確認してください")
 
 
 def build_prompt(item):
@@ -64,6 +106,8 @@ def main():
     item = today["item"]
 
     env = load_env()
+
+    ensure_comfyui_running()
 
     print(f"動画生成中(ComfyUI/LTX-2.5): {item['name'][:40]}...")
     prompt = build_prompt(item)
